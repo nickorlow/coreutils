@@ -84,10 +84,12 @@ impl Formatter<i64> for SignedInt {
             return Ok(());
         }
 
+        // -i64::MIN is actually 1 larger than i64::MAX, so we need to cast to i128 first.
+        let abs = (x as i128).abs();
         let s = if self.precision > 0 {
-            format!("{:0>width$}", x.abs(), width = self.precision)
+            format!("{:0>width$}", abs, width = self.precision)
         } else {
-            x.abs().to_string()
+            abs.to_string()
         };
 
         let sign_indicator = get_sign_indicator(self.positive_sign, x.is_negative());
@@ -1054,6 +1056,8 @@ mod test {
         let format = Format::<SignedInt, i64>::parse("%d").unwrap();
         assert_eq!(fmt(&format, 123i64), "123");
         assert_eq!(fmt(&format, -123i64), "-123");
+        assert_eq!(fmt(&format, i64::MAX), "9223372036854775807");
+        assert_eq!(fmt(&format, i64::MIN), "-9223372036854775808");
 
         let format = Format::<SignedInt, i64>::parse("%i").unwrap();
         assert_eq!(fmt(&format, 123i64), "123");
