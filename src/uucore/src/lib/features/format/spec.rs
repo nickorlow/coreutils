@@ -425,11 +425,13 @@ impl Spec {
                 position,
             } => {
                 let (width, neg_width) = resolve_asterisk_width(*width, args).unwrap_or((0, false));
-                let precision = resolve_asterisk_precision(*precision, args).unwrap_or_default();
+                let precision = resolve_asterisk_precision(*precision, args);
                 let i = args.next_i64(position);
 
-                if precision as u64 > i32::MAX as u64 {
-                    return Err(FormatError::InvalidPrecision(precision.to_string()));
+                if let Some(prec) = precision {
+                    if prec as u64 > i32::MAX as u64 {
+                        return Err(FormatError::InvalidPrecision(prec.to_string()));
+                    }
                 }
 
                 num_format::SignedInt {
@@ -453,11 +455,13 @@ impl Spec {
                 position,
             } => {
                 let (width, neg_width) = resolve_asterisk_width(*width, args).unwrap_or((0, false));
-                let precision = resolve_asterisk_precision(*precision, args).unwrap_or_default();
+                let precision = resolve_asterisk_precision(*precision, args);
                 let i = args.next_u64(position);
 
-                if precision as u64 > i32::MAX as u64 {
-                    return Err(FormatError::InvalidPrecision(precision.to_string()));
+                if let Some(prec) = precision {
+                    if prec as u64 > i32::MAX as u64 {
+                        return Err(FormatError::InvalidPrecision(prec.to_string()));
+                    }
                 }
 
                 num_format::UnsignedInt {

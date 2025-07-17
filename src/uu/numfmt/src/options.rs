@@ -208,7 +208,7 @@ impl FromStr for FormatOptions {
             }
 
             if precision.is_empty() {
-                options.precision = Some(0);
+                options.precision = None;
             } else if let Ok(p) = precision.parse() {
                 options.precision = Some(p);
             } else {

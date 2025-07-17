@@ -73,21 +73,23 @@ pub enum NumberAlignment {
 
 pub struct SignedInt {
     pub width: usize,
-    pub precision: usize,
+    pub precision: Option<usize>,
     pub positive_sign: PositiveSign,
     pub alignment: NumberAlignment,
 }
 
 impl Formatter<i64> for SignedInt {
     fn fmt(&self, writer: impl Write, x: i64) -> std::io::Result<()> {
-        if self.precision == 0 && x == 0 {
-            return Ok(());
-        }
-
         // -i64::MIN is actually 1 larger than i64::MAX, so we need to cast to i128 first.
         let abs = (x as i128).abs();
-        let s = if self.precision > 0 {
-            format!("{abs:0>width$}", width = self.precision)
+        let s = if let Some(prec) = self.precision {
+            if prec > 0 {
+                format!("{abs:0>width$}", width = prec)
+            } else if abs == 0 {
+                String::from("")
+            } else {
+                abs.to_string()
+            }
         } else {
             abs.to_string()
         };
@@ -116,8 +118,8 @@ impl Formatter<i64> for SignedInt {
         };
 
         let precision = match precision {
-            Some(CanAsterisk::Fixed(x)) => x,
-            None => 0,
+            Some(CanAsterisk::Fixed(x)) => Some(x),
+            None => None,
             Some(CanAsterisk::Asterisk(_)) => return Err(FormatError::WrongSpecType),
         };
 
@@ -133,16 +135,12 @@ impl Formatter<i64> for SignedInt {
 pub struct UnsignedInt {
     pub variant: UnsignedIntVariant,
     pub width: usize,
-    pub precision: usize,
+    pub precision: Option<usize>,
     pub alignment: NumberAlignment,
 }
 
 impl Formatter<u64> for UnsignedInt {
     fn fmt(&self, mut writer: impl Write, x: u64) -> std::io::Result<()> {
-        if self.precision == 0 && x == 0 {
-            return Ok(());
-        }
-
         let mut s = match self.variant {
             UnsignedIntVariant::Decimal => format!("{x}"),
             UnsignedIntVariant::Octal(_) => format!("{x:o}"),
@@ -159,11 +157,25 @@ impl Formatter<u64> for UnsignedInt {
         let prefix = match (x, self.variant) {
             (1.., UnsignedIntVariant::Hexadecimal(Case::Lowercase, Prefix::Yes)) => "0x",
             (1.., UnsignedIntVariant::Hexadecimal(Case::Uppercase, Prefix::Yes)) => "0X",
-            (1.., UnsignedIntVariant::Octal(Prefix::Yes)) if s.len() >= self.precision => "0",
+            (1.., UnsignedIntVariant::Octal(Prefix::Yes)) if s.len() >= self.precision.unwrap_or(0) => "0",
             _ => "",
         };
 
-        s = format!("{prefix}{s:0>width$}", width = self.precision);
+        if let Some(prec) = self.precision {
+            if prec == 0 && x == 0 {
+                let blank = "";
+                s = match self.variant {
+                    UnsignedIntVariant::Octal(Prefix::Yes) => String::from("0"),
+                    _ => format!("{blank:>width$}", width = self.width)
+                };
+            } else {
+                s = format!("{prefix}{s:0>width$}", width = prec);
+            }
+        } else {
+            s = format!("{prefix}{s:0>width$}", width = 0);
+        }
+
+
 
         match self.alignment {
             NumberAlignment::Left => write!(writer, "{s:<width$}", width = self.width),
@@ -211,8 +223,8 @@ impl Formatter<u64> for UnsignedInt {
         };
 
         let precision = match precision {
-            Some(CanAsterisk::Fixed(x)) => x,
-            None => 0,
+            Some(CanAsterisk::Fixed(x)) => Some(x),
+            None => None,
             Some(CanAsterisk::Asterisk(_)) => return Err(FormatError::WrongSpecType),
         };
 
@@ -734,7 +746,7 @@ mod test {
             UnsignedInt {
                 variant: UnsignedIntVariant::Octal(Prefix::Yes),
                 width: 0,
-                precision: 0,
+                precision: Some(0),
                 alignment: NumberAlignment::Left,
             }
             .fmt(&mut s, x)
@@ -1173,12 +1185,42 @@ mod test {
     }
 
     #[test]
-    #[ignore = "Need issue #7509 to be fixed"]
     fn format_signed_int_precision_zero() {
         let format = Format::<SignedInt, i64>::parse("%.0d").unwrap();
         assert_eq!(fmt(&format, 123i64), "123");
         // From cppreference.com: "If both the converted value and the precision are ​0​ the conversion results in no characters."
         assert_eq!(fmt(&format, 0i64), "");
+
+        let format_plus = Format::<SignedInt, i64>::parse("%+.0d\n").unwrap();
+        assert_eq!(fmt(&format_plus, 0i64), "+\n");
+
+        let format_pad = Format::<SignedInt, i64>::parse("X%6.0dX").unwrap();
+        assert_eq!(fmt(&format_pad, 0i64), "X      X");
+    }
+
+    #[test]
+    fn format_unsigned_int_precision_zero() {
+        let format = Format::<UnsignedInt, u64>::parse("%.0u").unwrap();
+        assert_eq!(fmt(&format, 123u64), "123");
+        // From cppreference.com: "If both the converted value and the precision are ​0​ the conversion results in no characters."
+        assert_eq!(fmt(&format, 0u64), "");
+
+        let format_norm = Format::<UnsignedInt, u64>::parse("%u").unwrap();
+        assert_eq!(fmt(&format_norm, 123u64), "123");
+        assert_eq!(fmt(&format_norm, 0u64), "0");
+
+        let format_pad = Format::<UnsignedInt, u64>::parse("X%6.0uX").unwrap();
+        assert_eq!(fmt(&format_pad, 0u64), "X      X");
+
+        let format_oct = Format::<UnsignedInt, u64>::parse("%#.0o").unwrap();
+        assert_eq!(fmt(&format_oct, 0u64), "0");
+
+        let format_pad_oct = Format::<UnsignedInt, u64>::parse("X%#6.0oX").unwrap();
+        assert_eq!(fmt(&format_pad_oct, 0u64), "X     0X");
+
+        let format_hex = Format::<UnsignedInt, u64>::parse("%#.0x").unwrap();
+        assert_eq!(fmt(&format_hex, 0u64), "");
+
     }
 
     #[test]
@@ -1200,7 +1242,7 @@ mod test {
     }
 
     #[test]
-    #[ignore = "Need issues #7509 and #7510 to be fixed"]
+    #[ignore = "Needs issue #7510 to be fixed"]
     fn format_unsigned_int_broken() {
         // TODO: Merge this back into format_unsigned_int.
         let f = |fmt_str: &str, n: u64| {
