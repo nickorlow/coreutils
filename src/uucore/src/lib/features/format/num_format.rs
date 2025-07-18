@@ -140,7 +140,7 @@ pub struct UnsignedInt {
 }
 
 impl Formatter<u64> for UnsignedInt {
-    fn fmt(&self, mut writer: impl Write, x: u64) -> std::io::Result<()> {
+    fn fmt(&self, writer: impl Write, x: u64) -> std::io::Result<()> {
         let mut s = match self.variant {
             UnsignedIntVariant::Decimal => format!("{x}"),
             UnsignedIntVariant::Octal(_) => format!("{x:o}"),
