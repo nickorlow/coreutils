@@ -82,9 +82,9 @@ impl Formatter<i64> for SignedInt {
     fn fmt(&self, writer: impl Write, x: i64) -> std::io::Result<()> {
         // -i64::MIN is actually 1 larger than i64::MAX, so we need to cast to i128 first.
         let abs = (x as i128).abs();
-        let s = if let Some(prec) = self.precision {
-            if prec > 0 {
-                format!("{abs:0>width$}", width = prec)
+        let s = if let Some(precision) = self.precision {
+            if precision > 0 {
+                format!("{abs:0>precision$}")
             } else if abs == 0 {
                 String::from("")
             } else {
@@ -163,14 +163,14 @@ impl Formatter<u64> for UnsignedInt {
             _ => "",
         };
 
-        if let Some(prec) = self.precision {
-            if prec == 0 && x == 0 {
+        if let Some(precision) = self.precision {
+            if precision == 0 && x == 0 {
                 s = match self.variant {
                     UnsignedIntVariant::Octal(Prefix::Yes) => String::from("0"),
                     _ => String::from(""),
                 };
             } else {
-                s = format!("{prefix}{s:0>width$}", width = prec);
+                s = format!("{prefix}{s:0>precision$}");
             }
         } else {
             s = format!("{prefix}{s:0>width$}", width = 0);

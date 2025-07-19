@@ -418,18 +418,18 @@ impl Spec {
                 position,
             } => {
                 let (width, neg_width) = resolve_asterisk_width(*width, args).unwrap_or((0, false));
-                let precision = resolve_asterisk_precision(*precision, args);
+                let precision_o = resolve_asterisk_precision(*precision, args);
                 let i = args.next_i64(position);
 
-                if let Some(prec) = precision {
-                    if prec as u64 > i32::MAX as u64 {
-                        return Err(FormatError::InvalidPrecision(prec.to_string()));
+                if let Some(precision) = precision_o {
+                    if precision as u64 > i32::MAX as u64 {
+                        return Err(FormatError::InvalidPrecision(precision.to_string()));
                     }
                 }
 
                 num_format::SignedInt {
                     width,
-                    precision,
+                    precision: precision_o,
                     positive_sign: *positive_sign,
                     alignment: if neg_width {
                         NumberAlignment::Left
@@ -448,18 +448,18 @@ impl Spec {
                 position,
             } => {
                 let (width, neg_width) = resolve_asterisk_width(*width, args).unwrap_or((0, false));
-                let precision = resolve_asterisk_precision(*precision, args);
+                let precision_o = resolve_asterisk_precision(*precision, args);
                 let i = args.next_u64(position);
 
-                if let Some(prec) = precision {
-                    if prec as u64 > i32::MAX as u64 {
-                        return Err(FormatError::InvalidPrecision(prec.to_string()));
+                if let Some(precision) = precision_o {
+                    if precision as u64 > i32::MAX as u64 {
+                        return Err(FormatError::InvalidPrecision(precision.to_string()));
                     }
                 }
 
                 num_format::UnsignedInt {
                     variant: *variant,
-                    precision,
+                    precision: precision_o,
                     width,
                     alignment: if neg_width {
                         NumberAlignment::Left
@@ -540,7 +540,7 @@ fn resolve_asterisk_precision(
         None => None,
         Some(CanAsterisk::Asterisk(loc)) => match args.next_i64(&loc) {
             v if v >= 0 => usize::try_from(v).ok(),
-            v if v < 0 => Some(0usize),
+            v if v < 0 => None,
             _ => None,
         },
         Some(CanAsterisk::Fixed(w)) => Some(w),
