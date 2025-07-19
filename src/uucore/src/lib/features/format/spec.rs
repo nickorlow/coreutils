@@ -723,14 +723,14 @@ mod tests {
             );
 
             assert_eq!(
-                Some(0),
+                None,
                 resolve_asterisk_precision(
                     Some(CanAsterisk::Asterisk(ArgumentLocation::NextArgument)),
                     &mut FormatArguments::new(&[FormatArgument::SignedInt(-42)]),
                 )
             );
             assert_eq!(
-                Some(0),
+                None,
                 resolve_asterisk_precision(
                     Some(CanAsterisk::Asterisk(ArgumentLocation::NextArgument)),
                     &mut FormatArguments::new(&[FormatArgument::Unparsed("-42".into())]),
